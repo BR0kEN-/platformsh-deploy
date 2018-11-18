@@ -1,5 +1,7 @@
 # Platform.sh
 
+The deploy/build scripts for Platform.sh that needs to lay near `.platform.app.yaml`.
+
 ## Hooks runner
 
 The [hooks/hook.sh](hook.sh) is a Bash script that is capable to run `deploy` or `build` hook.
@@ -8,9 +10,9 @@ Example of usage in `.platform.app.yaml`.
 
 ```yaml
 hooks:
-  build: 'bash hook.sh build'
+  build: 'bash pfqaplatform_deploy/hook.sh build'
   # Send a notification via Slack after the deploy.
-  deploy: 'bash hook.sh deploy slack'
+  deploy: 'bash pfqaplatform_deploy/hook.sh deploy slack'
 ```
 
 ### Configuration
@@ -22,10 +24,10 @@ To setup the runner properly you may need to edit available variables at the top
 
 ## Process
 
-Within the `.deploy/<ACTION>` you may consider creating two handlers:
+Within the `.deploy/$ACTION/` you may consider creating two handlers:
 
-  - `_succeeded.sh` - the file that will be included in a runtime once all commands in a process will successfully end.
-  - `_failed.sh` - the same as above, but only after first non-zero return code (a process will be terminated).
+  - `_succeeded.sh` - the file that will be included to a runtime once all commands in a process will successfully end.
+  - `_failed.sh` - the same as above, but only after the first non-zero return code (a process will be terminated).
 
 Available environment variables:
 
@@ -33,11 +35,11 @@ Available environment variables:
 
 *This script can be run locally if it doesn't rely on Platform.sh environment.*
 
-### Specific environment handler
+### Specific environment handlers
 
-The `build` hook executes in an isolation, therefore, an environment cannot be determined. The opposite situation for `deploy` and it gives the possibility to perform environment-specific actions. The following Bash scripts may be included (after non-specific) in a runtime context if exist:
+The `build` hook executes in an isolation, therefore, an environment cannot be determined. The opposite situation for `deploy` and this gives a possibility to perform environment-specific actions. The following Bash scripts may be included (after non-specific) to a runtime context if exist:
 
-- `.deploy/environment/$PLATFORM_BRANCH/<PROCESS_SUBDIR_KEY>.sh`
+- `.deploy/environment/$PLATFORM_BRANCH/$ACTION/$ACTION.sh`
 - `.deploy/environment/$PLATFORM_BRANCH/_succeeded.sh`
 - `.deploy/environment/$PLATFORM_BRANCH/_failed.sh`
 
@@ -52,9 +54,9 @@ Make sure your `.platform.app.yaml` has the following contents:
 ```yaml
 variables:
   env:
-    SLACK_WEBHOOK_URI: 'https://hooks.slack.com/services/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'
-    SLACK_CHANNEL: '#pfqaplatform-ci'
-    SLACK_SENDER: 'Pfizer QA Platform'
+    SLACK_WEBHOOK_URI: 'https://hooks.slack.com/services/ID1/ID2/ID3'
+    SLACK_CHANNEL: '#my-slack-channel'
+    SLACK_SENDER: 'My Slack channel'
 ```
 
 #### Custom
@@ -68,7 +70,7 @@ Example:
 ```yaml
 hooks:
   # Notify with "notifications/NAME.php" about the "build".
-  build: 'bash hook.sh build NAME'
+  build: 'bash pfqaplatform_deploy/hook.sh build NAME'
   # Notify with "notifications/telegram.php" about the "deploy".
-  deploy: 'bash hook.sh deploy telegram'
+  deploy: 'bash pfqaplatform_deploy/hook.sh deploy telegram'
 ```

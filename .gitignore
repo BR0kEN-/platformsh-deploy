@@ -1,6 +1,7 @@
 /*
 
 !/.git*
+!/.deploy/
 
 !/hook.sh
 !/README.md

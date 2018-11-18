@@ -25,8 +25,10 @@ if [[ ! "$ACTION" =~ ^(build|deploy)$ ]]; then
   exit 19
 fi
 
+cd "$(dirname "$0")/.."
+
 # The path to a parent directory, relative to this file (literally, one catalog above).
-PROJECT_DIR="$(cd "$(dirname "$0/..")" && pwd -P)"
+PROJECT_DIR="$(pwd -P)"
 
 if [ "build" == "$ACTION" ]; then
   : "${PLATFORM_BRANCH:="unknown-at-build-stage"}"
@@ -35,8 +37,8 @@ else
 fi
 
 include() {
-  for SUBDIR in "/" "/environment/$PLATFORM_BRANCH/"; do
-    INCLUDE_FILE="$PROJECT_DIR/.deploy/$ACTION$SUBDIR$1.sh"
+  for SUBDIR in "" "environment/$PLATFORM_BRANCH/"; do
+    INCLUDE_FILE="$PROJECT_DIR/.deploy/$SUBDIR$ACTION/$1.sh"
 
     if [ -f "$INCLUDE_FILE" ]; then
       inform "--- include \"$INCLUDE_FILE\"."
