@@ -14,13 +14,52 @@
  * @endcode
  */
 
-use Maknz\Slack\Client as Slack;
+/**
+ * @param string $message
+ * @param int|null $exit
+ */
+function error(string $message, ?int $exit = NULL): void {
+  static $errors = [];
+
+  if ($exit === NULL) {
+    $errors[] = $message;
+  }
+  elseif (!empty($errors)) {
+    foreach ($errors as $error) {
+      echo "---> $error\n";
+    }
+
+    exit($exit);
+  }
+}
+
+if (count($argv) !== 3) {
+  error('You must pass an exit code as a first argument and the name of an operation as the second one.');
+}
+
+if (isset($argv[1])) {
+  if (!is_numeric($argv[1])) {
+    error('The first argument - an exit code of a previous command - must be numeric.');
+  }
+
+  // The hook exited with a non-zero status code.
+  if ($argv[1] > 0) {
+    $icon = 'fire';
+    $color = 'danger';
+    $state = 'failed';
+  }
+  else {
+    $icon = 'metal';
+    $color = 'good';
+    $state = 'succeeded';
+  }
+}
 
 foreach ([
   // Non-fatal missings that just disallows to use this script locally.
   [
     'message' => 'The "%s" environment variable is missing. Unable to continue.',
-    'variables' => ['PLATFORM_ROUTES', 'PLATFORM_BRANCH', 'PLATFORM_APP_DIR'],
+    'variables' => ['PLATFORM_ROUTES', 'PLATFORM_BRANCH'],
   ],
   // Cannot send the message to the unknown location.
   [
@@ -29,58 +68,53 @@ foreach ([
   ],
 ] as $exit_code => $group) {
   foreach ($group['variables'] as $variable) {
-    empty($_ENV[$variable]) && printf($group['message'] . '%s', $variable, PHP_EOL) && exit($exit_code);
+    if (empty($_ENV[$variable])) {
+      error(sprintf($group['message'], $variable));
+    }
   }
 }
 
-// Go to the directory with root "composer.json".
-chdir($_ENV['PLATFORM_APP_DIR']);
-// Do not assume the "vendor" by default. It might be changed.
-require_once trim(`composer config vendor-dir`) . '/autoload.php';
+error('^', 66);
 
 foreach (json_decode(base64_decode($_ENV['PLATFORM_ROUTES'])) as $url => $route) {
-  if ($route->type === 'upstream') {
+  if ($route->type === 'upstream' && $route->primary) {
     // The upstream has been found.
     break;
   }
 }
 
-// The upstream and exit code both known.
-if (isset($url)) {
-  $slack = new Slack($_ENV['SLACK_WEBHOOK_URI']);
-
-  // The hook exited with "0" status code.
-  if ((int) $argv[1] === 0) {
-    $icon = 'metal';
-    $color = 'good';
-    $state = 'succeeded';
-  }
-  else {
-    $icon = 'fire';
-    $color = 'danger';
-    $state = 'failed';
-  }
-
-  $slack->sendMessage(
-    $slack
-      ->createMessage()
-      ->to($_ENV['SLACK_CHANNEL'])
-      ->from($_ENV['SLACK_SENDER'])
-      ->setText("The {$argv[2]} has been $state.")
-      ->setIcon(":$icon:")
-      ->attach([
-        'color' => $color,
-        'fallback' => '',
-        'fields' => [
-          [
-            'title' => 'Environment',
-            'value' => $_ENV['PLATFORM_BRANCH'],
-          ],
-          [
-            'title' => 'URL',
-            'value' => $url,
-          ],
-        ],
-      ])
-  );
+if (!isset($url)) {
+  error('The primary upstream is unknown.', 99);
 }
+
+$ch = curl_init();
+
+curl_setopt($ch, CURLOPT_URL, $_ENV['SLACK_WEBHOOK_URI']);
+curl_setopt($ch, CURLOPT_POST, TRUE);
+curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+  'text' => "The {$argv[2]} has been $state.",
+  'channel' => $_ENV['SLACK_CHANNEL'],
+  'username' => $_ENV['SLACK_SENDER'],
+  'icon_emoji' => ":$icon:",
+  'attachments' => [
+    [
+      'color' => $color,
+      'fallback' => '',
+      'fields' => [
+        [
+          'title' => 'Environment',
+          'value' => $_ENV['PLATFORM_BRANCH'],
+        ],
+        [
+          'title' => 'URL',
+          'value' => $url,
+        ],
+      ],
+    ],
+  ],
+]));
+
+curl_exec($ch);
+curl_close($ch);

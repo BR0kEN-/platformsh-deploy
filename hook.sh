@@ -60,11 +60,10 @@ handle_shutdown() {
     include "_failed"
   fi
 
-# @todo Write an independent Slack notification sender.
-#  if [ -f "$PROJECT_DIR/notifications/$NOTIFIER.php" ]; then
-#    php "$PROJECT_DIR/notifications/$NOTIFIER.php" "$STATUS" "$ACTION"
-#    inform "The notification to \"${NOTIFIER^}\" has been sent."
-#  fi
+  if [ -f "$PROJECT_DIR/notifications/$NOTIFIER.php" ]; then
+    php "$PROJECT_DIR/notifications/$NOTIFIER.php" "$STATUS" "$ACTION"
+    inform "The notification to \"${NOTIFIER^}\" has been sent."
+  fi
 }
 
 trap handle_shutdown EXIT
