@@ -69,6 +69,11 @@ foreach ([
 ] as $exit_code => $group) {
   foreach ($group['variables'] as $variable) {
     if (empty($_ENV[$variable])) {
+      // Try to access the variable.
+      $_ENV[$variable] = getenv($variable);
+    }
+
+    if (empty($_ENV[$variable])) {
       error(sprintf($group['message'], $variable));
     }
   }
@@ -96,7 +101,7 @@ $message = [
 ];
 
 foreach (json_decode(base64_decode($_ENV['PLATFORM_ROUTES'])) as $url => $route) {
-  if ($route->upstream === $_ENV['PLATFORM_APPLICATION_NAME']) {
+  if (isset($route->upstream) && $route->upstream === $_ENV['PLATFORM_APPLICATION_NAME']) {
     $message['attachments'][0]['fields'][] = [
       'title' => 'URL',
       'value' => $url,
@@ -105,13 +110,14 @@ foreach (json_decode(base64_decode($_ENV['PLATFORM_ROUTES'])) as $url => $route)
   }
 }
 
-$ch = curl_init();
-
-curl_setopt($ch, CURLOPT_URL, $_ENV['SLACK_WEBHOOK_URI']);
-curl_setopt($ch, CURLOPT_POST, TRUE);
-curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
-curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($message));
-
-curl_exec($ch);
-curl_close($ch);
+// The "curl_*()" functions cannot be used because "nodejs" environments have
+// very limited PHP interpreter without many extensions ("curl" among them).
+// This variant of sending a POST request uses only PHP built-in functions
+// and will work even with a minimalistic setup.
+file_get_contents($_ENV['SLACK_WEBHOOK_URI'], FALSE, stream_context_create([
+  'http' => [
+    'method' => 'POST',
+    'header' => ['Content-Type: application/json'],
+    'content' => json_encode($message),
+  ],
+]));
