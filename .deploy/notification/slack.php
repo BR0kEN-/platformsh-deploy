@@ -18,7 +18,7 @@
  * @param string $message
  * @param int|null $exit
  */
-function error(string $message, ?int $exit = NULL): void {
+function error(string $message, int $exit = NULL) {
   static $errors = [];
 
   if ($exit === NULL) {
@@ -59,7 +59,7 @@ foreach ([
   // Non-fatal missings that just disallows to use this script locally.
   [
     'message' => 'The "%s" environment variable is missing. Unable to continue.',
-    'variables' => ['PLATFORM_ROUTES', 'PLATFORM_BRANCH'],
+    'variables' => ['PLATFORM_ROUTES', 'PLATFORM_BRANCH', 'PLATFORM_APPLICATION_NAME'],
   ],
   // Cannot send the message to the unknown location.
   [
@@ -76,24 +76,7 @@ foreach ([
 
 error('^', 66);
 
-foreach (json_decode(base64_decode($_ENV['PLATFORM_ROUTES'])) as $url => $route) {
-  if ($route->type === 'upstream' && $route->primary) {
-    // The upstream has been found.
-    break;
-  }
-}
-
-if (!isset($url)) {
-  error('The primary upstream is unknown.', 99);
-}
-
-$ch = curl_init();
-
-curl_setopt($ch, CURLOPT_URL, $_ENV['SLACK_WEBHOOK_URI']);
-curl_setopt($ch, CURLOPT_POST, TRUE);
-curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
-curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+$message = [
   'text' => "The {$argv[2]} has been $state.",
   'channel' => $_ENV['SLACK_CHANNEL'],
   'username' => $_ENV['SLACK_SENDER'],
@@ -107,14 +90,28 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
           'title' => 'Environment',
           'value' => $_ENV['PLATFORM_BRANCH'],
         ],
-        [
-          'title' => 'URL',
-          'value' => $url,
-        ],
       ],
     ],
   ],
-]));
+];
+
+foreach (json_decode(base64_decode($_ENV['PLATFORM_ROUTES'])) as $url => $route) {
+  if ($route->upstream === $_ENV['PLATFORM_APPLICATION_NAME']) {
+    $message['attachments'][0]['fields'][] = [
+      'title' => 'URL',
+      'value' => $url,
+    ];
+    break;
+  }
+}
+
+$ch = curl_init();
+
+curl_setopt($ch, CURLOPT_URL, $_ENV['SLACK_WEBHOOK_URI']);
+curl_setopt($ch, CURLOPT_POST, TRUE);
+curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($message));
 
 curl_exec($ch);
 curl_close($ch);
