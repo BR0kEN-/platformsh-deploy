@@ -20,7 +20,7 @@ hooks:
 To setup the runner properly you may need to edit available variables at the top of the file.
 
 - `ACTION` - the action to perform, defaults to `$1`.
-- `NOTIFIER` - one of the available notification clients (the name of a `*.php` script in the `notifications` subdirectory) , defaults to `$2`.
+- `NOTIFIER` - one of the available notification clients (the name of a `*.php` script in the `.deploy/notification` subdirectory) , defaults to `$2`.
 
 ## Process
 
@@ -39,9 +39,9 @@ Available environment variables:
 
 The `build` hook executes in an isolation, therefore, an environment cannot be determined. The opposite situation for `deploy` and this gives a possibility to perform environment-specific actions. The following Bash scripts may be included (after non-specific) to a runtime context if exist:
 
-- `.deploy/environment/$PLATFORM_BRANCH/$ACTION/$ACTION.sh`
-- `.deploy/environment/$PLATFORM_BRANCH/_succeeded.sh`
-- `.deploy/environment/$PLATFORM_BRANCH/_failed.sh`
+- `.deploy/$ACTION/$PLATFORM_BRANCH/$ACTION.sh`
+- `.deploy/$ACTION/$PLATFORM_BRANCH/_succeeded.sh`
+- `.deploy/$ACTION/$PLATFORM_BRANCH/_failed.sh`
 
 ### Notifications
 
@@ -61,7 +61,7 @@ variables:
 
 #### Custom
 
-- Create the `NAME.php` inside the `notifications`.
+- Create the `NAME.php` inside the `.deploy/notification`.
 - Pass the `NAME` as a second argument to the `hook.sh`.
 - The `NAME.php` will receive two arguments: `EXIT_CODE` and `ACTION`.
 
@@ -69,8 +69,8 @@ Example:
 
 ```yaml
 hooks:
-  # Notify with "notifications/NAME.php" about the "build".
+  # Notify with ".deploy/notification/NAME.php" about the "build".
   build: 'bash pfqaplatform_deploy/hook.sh build NAME'
-  # Notify with "notifications/telegram.php" about the "deploy".
+  # Notify with ".deploy/notification/telegram.php" about the "deploy".
   deploy: 'bash pfqaplatform_deploy/hook.sh deploy telegram'
 ```

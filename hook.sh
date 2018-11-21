@@ -25,8 +25,8 @@ if [[ ! "$ACTION" =~ ^(build|deploy)$ ]]; then
   exit 19
 fi
 
-cd "$(dirname "$0")/.."
-
+SELF_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+cd "$SELF_DIR/.."
 # The path to a parent directory, relative to this file (literally, one catalog above).
 PROJECT_DIR="$(pwd -P)"
 
@@ -37,8 +37,8 @@ else
 fi
 
 include() {
-  for SUBDIR in "" "environment/$PLATFORM_BRANCH/"; do
-    INCLUDE_FILE="$PROJECT_DIR/.deploy/$SUBDIR$ACTION/$1.sh"
+  for SUBDIR in "" "/$PLATFORM_BRANCH/"; do
+    INCLUDE_FILE="$PROJECT_DIR/.deploy/$ACTION$SUBDIR/$1.sh"
 
     if [ -f "$INCLUDE_FILE" ]; then
       inform "--- include \"$INCLUDE_FILE\"."
@@ -60,10 +60,15 @@ handle_shutdown() {
     include "_failed"
   fi
 
-  if [ -f "$PROJECT_DIR/notifications/$NOTIFIER.php" ]; then
-    php "$PROJECT_DIR/notifications/$NOTIFIER.php" "$STATUS" "$ACTION"
-    inform "The notification to \"${NOTIFIER^}\" has been sent."
-  fi
+  for SUBDIR in "$PROJECT_DIR" "$SELF_DIR"; do
+    INCLUDE_FILE="$SUBDIR/.deploy/notification/$NOTIFIER.php"
+
+    if [ -f "$INCLUDE_FILE" ]; then
+      php "$INCLUDE_FILE" "$STATUS" "$ACTION"
+      inform "The notification to \"${NOTIFIER^}\" has been sent."
+      break
+    fi
+  done
 }
 
 trap handle_shutdown EXIT
